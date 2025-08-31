@@ -1,0 +1,12 @@
+torch>=2.2.0
+transformers>=4.42.0
+sentence-transformers>=3.0.1
+faiss-cpu>=1.8.0
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+tqdm>=4.66.0
+ujson>=5.9.0
+rapidfuzz>=3.9.0
+pyyaml>=6.0.0
+rank-bm25>=0.2.2

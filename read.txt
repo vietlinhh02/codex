@@ -1,0 +1,303 @@
+BÁO CÁO ĐỀ XUẤT ĐỀ TÀI NGHIÊN CỨU KHOA HỌC
+Tên đề tài: ViFact - Ứng dụng Trí tuệ Nhân tạo trong Kiểm chứng Tin giả Tiếng Việt: Một Kiến trúc Toàn diện, Diễn giải được và Tin cậy
+
+Phần I: Tổng quan Đề tài
+1. Tình hình nghiên cứu ở nước ngoài
+1.1. Sự tiến hóa của các Khung làm việc Kiểm chứng Thông tin Tự động (AFC)
+Kiểm chứng thông tin tự động (Automated Fact-Checking - AFC) đã nổi lên như một lĩnh vực nghiên cứu trọng yếu trong Xử lý Ngôn ngữ Tự nhiên (NLP) và Trí tuệ Nhân tạo (AI), nhằm đối phó với sự lan truyền nhanh chóng của thông tin sai lệch. Các hệ thống AFC thường được cấu trúc theo một quy trình gồm nhiều giai đoạn tuần tự, đã được chuẩn hóa trong cộng đồng nghiên cứu quốc tế. Quy trình này thường bao gồm: (1)    
+
+Phát hiện Mệnh đề (Claim Detection), nhằm xác định các mệnh đề đáng kiểm chứng (check-worthy) từ các luồng văn bản lớn; (2) Truy hồi Bằng chứng (Evidence Retrieval), tìm kiếm và thu thập các tài liệu liên quan có thể xác thực hoặc bác bỏ mệnh đề; (3) Xác minh Mệnh đề (Claim Verification), đưa ra phán quyết về tính xác thực của mệnh đề (ví dụ: ĐÚNG, SAI, KHÔNG ĐỦ THÔNG TIN) dựa trên bằng chứng đã truy hồi; và (4) Tạo Giải thích (Justification Generation), sản sinh ra một lời giải thích bằng ngôn ngữ tự nhiên để lý giải cho phán quyết đã đưa ra.   
+
+Trong giai đoạn đầu, các nghiên cứu chủ yếu tập trung vào việc tối ưu hóa độ chính xác của ba giai đoạn đầu tiên, đặc biệt là giai đoạn xác minh mệnh đề, vốn được xem là cốt lõi của bài toán. Tuy nhiên, khi các mô hình học sâu, đặc biệt là các mô hình ngôn ngữ lớn (LLMs), trở nên phức tạp và hoạt động như những "hộp đen" (black-box), nhu cầu về tính minh bạch và diễn giải được (explainability) đã trở nên cấp thiết. Do đó, giai đoạn tạo giải thích, vốn từng bị xem nhẹ, nay đã nhận được sự quan tâm đáng kể. Việc cung cấp một lời giải thích hợp lý không chỉ giúp người dùng hiểu được quy trình ra quyết định của mô hình mà còn là yếu tố then chốt để xây dựng lòng tin và tăng cường độ tin cậy của các hệ thống AFC.   
+
+Sự phát triển này cho thấy một sự chuyển dịch cơ bản trong lĩnh vực AFC. Ban đầu, mục tiêu chính là đạt được độ chính xác phân loại cao nhất. Các hệ thống được đánh giá dựa trên khả năng đưa ra phán quyết đúng. Tuy nhiên, thực tế cho thấy rằng một phán quyết chính xác nhưng không thể giải thích được có giá trị ứng dụng hạn chế và khó được chấp nhận trong các lĩnh vực nhạy cảm như báo chí hay an ninh công cộng. Người dùng cần biết tại sao một mệnh đề được cho là sai, và bằng chứng nào đã được sử dụng. Điều này đã thúc đẩy sự ra đời của các kỹ thuật diễn giải, từ việc trích xuất các đoạn văn bản quan trọng đến việc tạo ra các lý giải phức tạp. Quá trình này tiếp tục tiến hóa khi các nhà nghiên cứu nhận ra rằng không chỉ cần giải thích, mà lời giải thích đó phải trung thực (faithful) – phản ánh đúng quy trình suy luận của mô hình – và phải có khả năng truy xuất nguồn gốc (attributable) – liên kết rõ ràng với bằng chứng gốc để tránh hiện tượng "ảo giác" (hallucination) của các mô hình sinh. Như vậy, quỹ đạo phát triển của AFC đã đi từ việc chỉ tập trung vào "độ chính xác" đến một mục tiêu kép là "độ chính xác và độ tin cậy", trong đó độ tin cậy được xây dựng dựa trên khả năng diễn giải, suy luận minh bạch và truy xuất nguồn gốc chặt chẽ.   
+
+1.2. Hiện trạng các Kỹ thuật Tiên tiến trong từng Giai đoạn
+Truy hồi Bằng chứng (Evidence Retrieval): Lĩnh vực này đã chứng kiến một bước nhảy vọt từ các phương pháp dựa trên từ khóa truyền thống sang các kiến trúc lai (hybrid) tinh vi. Các hệ thống hiện đại thường kết hợp sức mạnh của hai loại bộ truy hồi:
+
+Bộ truy hồi Thưa (Sparse Retriever): Các thuật toán như BM25 hay TF-IDF rất hiệu quả trong việc khớp từ khóa chính xác, đặc biệt hữu ích cho các mệnh đề chứa các thực thể định danh, ngày tháng, hoặc thuật ngữ kỹ thuật cụ thể.   
+
+Bộ truy hồi Dày (Dense Retriever): Sử dụng các mô hình transformer như Sentence-BERT hay DPR để mã hóa mệnh đề và các đoạn văn bản bằng chứng thành các vector dày trong không gian ngữ nghĩa. Cách tiếp cận này cho phép tìm kiếm dựa trên sự tương đồng về ý nghĩa, giúp phát hiện các bằng chứng liên quan ngay cả khi chúng không chia sẻ chung từ khóa với mệnh đề.   
+
+Kiến trúc tiên tiến nhất hiện nay thường áp dụng một quy trình hai bước: đầu tiên, sử dụng song song cả bộ truy hồi thưa và dày để tạo ra một tập hợp lớn các ứng viên tiềm năng, sau đó sử dụng một mô hình bộ tái xếp hạng (re-ranker), thường là một cross-encoder, để đánh giá lại và chọn ra những bằng chứng phù hợp nhất. Cross-encoder xử lý đồng thời cả mệnh đề và từng bằng chứng ứng viên, cho phép mô hình hóa sự tương tác ngữ nghĩa sâu sắc và mang lại độ chính xác cao hơn đáng kể.   
+
+Xác minh và Suy luận Mệnh đề (Claim Verification & Reasoning): Đối với các mệnh đề phức tạp, việc chỉ đối chiếu với một bằng chứng duy nhất là không đủ. Hướng nghiên cứu tiên phong hiện nay là suy luận đa bước (multi-hop reasoning), đòi hỏi hệ thống phải có khả năng tổng hợp thông tin từ nhiều nguồn bằng chứng khác nhau để đi đến kết luận. Các phương pháp nổi bật bao gồm:   
+
+Suy luận dựa trên Đồ thị (Graph-based Reasoning): Xây dựng một đồ thị ngữ nghĩa trong đó các nút đại diện cho các thực thể hoặc khái niệm, và các cạnh biểu diễn mối quan hệ giữa chúng. Các mô hình như Mạng Tích chập Đồ thị (GCN) sau đó được sử dụng để lan truyền thông tin trên đồ thị, cho phép mô hình học được các chuỗi suy luận phức tạp qua nhiều bước.   
+
+Suy luận dựa trên Cơ chế Chú ý (Attention-based Reasoning): Sử dụng các kiến trúc transformer với cơ chế chú ý chéo (cross-attention) để mô hình hóa sự phụ thuộc lẫn nhau giữa các bằng chứng và giữa bằng chứng với mệnh đề. Điều này cho phép mô hình tự động xác định và tổng hợp các thông tin liên quan từ nhiều đoạn văn bản khác nhau.   
+
+Tạo Giải thích và Lý giải (Explanation & Justification Generation): Nhu cầu về các hệ thống AI đáng tin cậy đã thúc đẩy sự phát triển của các phương pháp tạo giải thích tinh vi. Các phương pháp ban đầu, chẳng hạn như tóm tắt các bài báo kiểm chứng do con người viết, tỏ ra không thực tế vì không áp dụng được cho các mệnh đề mới. Hướng tiếp cận hiện đại tập trung vào việc tạo ra giải thích trực tiếp từ các bằng chứng được truy hồi, với hai tiêu chí quan trọng là    
+
+tính trung thực (faithfulness) và tính hợp lý (plausibility).   
+
+Điều chuẩn Luận cứ (Rationale Regularization): Kỹ thuật này huấn luyện mô hình trích xuất một "luận cứ" (rationale) – một đoạn văn bản ngắn gọn, mạch lạc nhưng đủ để đưa ra phán quyết. Bằng cách thêm các thành phần điều chuẩn vào hàm mất mát để khuyến khích tính ngắn gọn và tính đầy đủ, phương pháp này buộc mô hình phải dựa vào một tập hợp con bằng chứng có thể diễn giải được.   
+
+Gán nhãn Nguồn (Source Attribution): Đây là một yêu cầu ngày càng quan trọng, đặc biệt với sự trỗi dậy của các mô hình sinh. Nó đòi hỏi mỗi phần của lời giải thích phải được liên kết rõ ràng trở lại với nguồn bằng chứng cụ thể đã cung cấp thông tin đó. Điều này giúp chống lại hiện tượng "ảo giác" và cho phép người dùng tự kiểm tra nguồn gốc của thông tin.   
+
+1.3. Các Thách thức và Hướng đi Mở
+Mặc dù đã có những tiến bộ đáng kể, lĩnh vực AFC vẫn đối mặt với nhiều thách thức. Một trong những vấn đề lớn nhất là xử lý sự mơ hồ và các bằng chứng mâu thuẫn (ambiguity and conflicting evidence). Trong thực tế, các nguồn thông tin thường không hoàn toàn đồng nhất, và một hệ thống AFC mạnh mẽ phải có khả năng cân nhắc các bằng chứng trái chiều để đưa ra kết luận hợp lý. Một thách thức khác là đảm bảo các giải thích được tạo ra không bị "ảo giác" (hallucinatory), tức là hoàn toàn dựa trên bằng chứng đã cung cấp. Ngoài ra, việc    
+
+mở rộng quy mô (scalability) để xử lý khối lượng và tốc độ thông tin khổng lồ trên mạng vẫn là một bài toán khó. Cuối cùng, sự thiếu hụt các bộ dữ liệu được gán nhãn quy mô lớn và chất lượng cao, đặc biệt là cho các ngôn ngữ ngoài tiếng Anh, vẫn là một rào cản lớn đối với sự phát triển của các hệ thống AFC chuyên biệt và hiệu quả. Bối cảnh nghiên cứu quốc tế này cho thấy một xu hướng rõ ràng: các hệ thống AFC đang ngày càng trở nên chính xác hơn, nhưng biên giới mới của nghiên cứu nằm ở việc xây dựng    
+
+sự tin cậy (trustworthiness) thông qua khả năng diễn giải nâng cao, suy luận mạnh mẽ và xử lý nguồn minh bạch.
+
+2. Tình hình nghiên cứu ở trong nước
+2.1. Bối cảnh và Thách thức của Xử lý Ngôn ngữ Tự nhiên Tiếng Việt (Vietnamese NLP)
+Tiếng Việt, với hơn 102 triệu người sử dụng, là một trong những ngôn ngữ phổ biến nhất trên thế giới nhưng lại thuộc nhóm ngôn ngữ ít tài nguyên (low-resource) trong lĩnh vực NLP. Sự phát triển các ứng dụng NLP tiên tiến cho tiếng Việt, bao gồm cả AFC, đã và đang đối mặt với những thách thức đáng kể, chủ yếu xuất phát từ sự khan hiếm các bộ dữ liệu lớn, chất lượng cao và các công cụ được chuẩn hóa. Mặc dù đã có những nỗ lực đáng ghi nhận trong việc xây dựng tài nguyên cho các tác vụ nền tảng như nhận dạng thực thể định danh, phân tích cú pháp hay dịch máy, các tác vụ đòi hỏi sự hiểu biết ngữ nghĩa sâu sắc như Suy luận Ngôn ngữ Tự nhiên (Natural Language Inference - NLI) và Đọc hiểu Máy (Machine Reading Comprehension - MRC) vẫn còn nhiều hạn chế.   
+
+Các cuộc thi và hội thảo khoa học trong nước, tiêu biểu là chuỗi hội thảo quốc tế về Xử lý Ngôn ngữ và Tiếng nói Tiếng Việt (VLSP), đã đóng vai trò quan trọng trong việc thúc đẩy nghiên cứu và tạo ra các bộ dữ liệu ban đầu. Ví dụ, tác vụ vnNLI tại VLSP 2021 đã cung cấp một bộ dữ liệu cho bài toán suy luận văn bản, một thành phần cốt lõi của việc xác minh mệnh đề. Tương tự, các bộ dữ liệu như UIT-ViQuAD cho tác vụ MRC đã đặt nền móng cho việc xây dựng các hệ thống hỏi đáp. Tuy nhiên, các bộ dữ liệu này thường có những giới hạn nhất định, chẳng hạn như chỉ tập trung vào một định dạng câu trả lời duy nhất (ví dụ: trích xuất một đoạn văn bản) và không bao quát được sự phức tạp đa dạng của các mệnh đề trong thế giới thực cần kiểm chứng. Do đó, các nhà nghiên cứu Việt Nam thường phải phụ thuộc nhiều vào các mô hình đa ngôn ngữ được huấn luyện trước (ví dụ: XLM-R, InfoXLM), vốn đã chứng tỏ hiệu quả cao trên nhiều tác vụ tiếng Việt nhưng không phải lúc nào cũng nắm bắt được hết các sắc thái tinh tế về ngôn ngữ và văn hóa bản địa.   
+
+2.2. Sự ra đời của các Tập dữ liệu Nền tảng cho Kiểm chứng Tiếng Việt
+Một bước ngoặt quan trọng đối với lĩnh vực AFC tiếng Việt là sự ra đời của ViFactCheck, bộ dữ liệu chuẩn (benchmark) công khai đầu tiên được thiết kế chuyên biệt cho bài toán kiểm chứng thông tin tiếng Việt trên nhiều lĩnh vực tin tức. Sự xuất hiện của ViFactCheck đã giải quyết được nút thắt lớn nhất từng cản trở các nghiên cứu chuyên sâu trong lĩnh vực này.   
+
+Bộ dữ liệu này bao gồm 7,232 cặp mệnh đề-bằng chứng được gán nhãn thủ công bởi con người, bao phủ 12 lĩnh vực tin tức đa dạng. Quá trình xây dựng ViFactCheck được tiến hành một cách hết sức nghiêm ngặt, bao gồm ba giai đoạn: thu thập dữ liệu từ các nguồn báo chí uy tín, gán nhãn bởi các nhãn viên được đào tạo kỹ lưỡng, và kiểm định chất lượng gán nhãn. Đáng chú ý, bộ dữ liệu đạt được chỉ số đồng thuận giữa các nhãn viên (Inter-Annotator Agreement) Fleiss' Kappa là 0.83, một con số rất cao, cho thấy chất lượng và độ tin cậy của dữ liệu. Một điểm đặc biệt trong thiết kế của ViFactCheck là việc các nhãn viên được hướng dẫn tạo ra các mệnh đề phức tạp, đòi hỏi suy luận đa bước từ nhiều bằng chứng, nhằm thúc đẩy các nghiên cứu về các mô hình suy luận tiên tiến.   
+
+Các kết quả thử nghiệm ban đầu trên ViFactCheck với các mô hình ngôn ngữ hiện đại như XLM-R-large và Gemma đã thiết lập những đường cơ sở (baseline) rất mạnh, với điểm F1-macro lên tới 89.90% khi sử dụng bằng chứng vàng (gold evidence). Điều này không chỉ khẳng định chất lượng của bộ dữ liệu mà còn đặt ra một tiêu chuẩn rõ ràng để các hệ thống mới như ViFact hướng tới và vượt qua.   
+
+Sự ra đời của ViFactCheck có thể được xem là một điểm uốn chiến lược (strategic inflection point) cho cộng đồng nghiên cứu AFC tiếng Việt. Trước đây, bất kỳ đề xuất nào về một hệ thống AFC toàn diện đều mang tính lý thuyết cao, vì thách thức lớn nhất là làm thế nào để xây dựng được một bộ dữ liệu đủ lớn và chất lượng để huấn luyện và đánh giá. Một dự án như vậy sẽ phải dành phần lớn nguồn lực cho việc tạo dữ liệu. Giờ đây, với sự tồn tại của ViFactCheck, bài toán đã thay đổi một cách cơ bản. Trọng tâm nghiên cứu không còn là "làm sao để có dữ liệu?" mà đã chuyển thành "kiến trúc nào là tốt nhất để tận dụng bộ dữ liệu này nhằm giải quyết bài toán kiểm chứng thông tin tiếng Việt một cách hiệu quả?". Điều này cho phép các dự án như ViFact có thể tham vọng hơn, tập trung vào việc đổi mới kiến trúc và giải quyết các vấn đề thế hệ tiếp theo như suy luận đa bước và tạo giải thích có kiểm soát, thay vì chỉ dừng lại ở bài toán phân loại cơ bản.
+
+Thuộc tính	FEVER (Thorne et al., 2018)	LIAR (Wang, 2017)	ViFactCheck (2025)
+Ngôn ngữ	Tiếng Anh	Tiếng Anh	Tiếng Việt
+Quy mô (Mệnh đề)	~185,000	~12,800	~7,200
+Nguồn dữ liệu	Wikipedia (tổng hợp)	PolitiFact (chính trị)	Báo chí Việt Nam (đa lĩnh vực)
+Lĩnh vực	Mở (dựa trên Wikipedia)	Chủ yếu là Chính trị	12 lĩnh vực (Kinh tế, Xã hội, Khoa học, v.v.)
+Lược đồ gán nhãn	3 lớp (SUPPORTS, REFUTES, NEI)	6 lớp (Pants on Fire, False, etc.)	3 lớp (SUPPORT, REFUTE, NEI)
+Đặc điểm nổi bật	Quy mô lớn, tạo ra từ Wikipedia	Dữ liệu thực tế từ báo chí	Bộ dữ liệu đa lĩnh vực đầu tiên cho tiếng Việt, chất lượng gán nhãn cao, có các mệnh đề đòi hỏi suy luận đa bước
+
+Xuất sang Trang tính
+Bảng 1: So sánh Phân tích các Bộ dữ liệu Kiểm chứng Thông tin Quốc tế và Việt Nam.
+
+2.3. Các nỗ lực Hiện có trong việc Phát hiện Tin giả Tiếng Việt
+Trước khi có ViFactCheck, các nghiên cứu tại Việt Nam chủ yếu tập trung vào các tác vụ con, riêng lẻ trong quy trình AFC tổng thể. Các cuộc thi tại VLSP đã thúc đẩy các nghiên cứu về NLI và MRC, là những thành phần quan trọng cho giai đoạn xác minh mệnh đề. Các nhóm nghiên cứu đã đạt được những kết quả đáng khích lệ bằng cách tinh chỉnh các mô hình đa ngôn ngữ trên các bộ dữ liệu tiếng Việt này. Tuy nhiên, những nỗ lực này vẫn mang tính rời rạc, giải quyết từng mảnh ghép của bức tranh lớn mà chưa có một hệ thống nào tích hợp chúng thành một quy trình end-to-end hoàn chỉnh. Khoảng trống này là rất rõ ràng: Việt Nam hiện chưa có một hệ thống AFC toàn diện, có khả năng diễn giải, được thiết kế chuyên biệt cho bối cảnh thông tin trong nước. Dự án ViFact được đề xuất chính là để lấp đầy khoảng trống chiến lược này, bằng cách tích hợp các năng lực nền tảng đã được xây dựng và đẩy chúng lên một tầm cao mới với một kiến trúc tiên tiến và toàn diện.   
+
+3. Tính cấp thiết của đề tài
+3.1. Vấn nạn Tin giả tại Việt Nam: Quy mô và Tác động
+Tin giả (fake news) đang nổi lên như một vấn nạn nghiêm trọng tại Việt Nam, một quốc gia có tỷ lệ người dân sử dụng Internet và mạng xã hội rất cao. Sự phát triển nhanh chóng của các nền tảng xuyên biên giới đã tạo điều kiện cho tin giả lan truyền với tốc độ chóng mặt, gây ra những thiệt hại lớn trên nhiều phương diện. Tin giả thường được tạo ra một cách có chủ đích để tác động đến tư tưởng, quan điểm, và hành vi của công chúng, nhằm phục vụ các mục đích chính trị, kinh tế hoặc các ý đồ xấu khác. Đặc điểm chung của tin giả là thường mang tính giật gân, kích động cảm xúc của người đọc, lợi dụng tâm lý tò mò để thúc đẩy các hành vi chia sẻ thiếu kiểm chứng.   
+
+3.2. Phân tích Hậu quả trên các Lĩnh vực Kinh tế - Xã hội - Chính trị
+Tác động của tin giả không chỉ dừng lại trên không gian mạng mà còn gây ra những hậu quả thật, có thể đo lường được trong thế giới thực.
+
+Thiệt hại Kinh tế: Một ví dụ điển hình xảy ra vào khoảng cuối tháng 3, đầu tháng 4 năm 2022, khi một loạt tin đồn thất thiệt trên mạng xã hội về việc một số doanh nghiệp lớn niêm yết trên sàn chứng khoán bị thanh tra. Thông tin này đã gây ra sự hoang mang tột độ cho các nhà đầu tư, dẫn đến việc bán tháo cổ phiếu. Mặc dù các cơ quan chức năng và doanh nghiệp đã nhanh chóng đưa ra thông tin đính chính, cổ phiếu của các công ty này vẫn liên tục giảm mạnh, gây thiệt hại nghiêm trọng cho doanh nghiệp và ảnh hưởng tiêu cực đến sự ổn định của thị trường chứng khoán nói riêng và nền kinh tế nói chung.   
+
+Bất ổn Xã hội và Chính trị: Tin giả là một công cụ nguy hiểm được các thế lực thù địch sử dụng để chống phá Đảng và Nhà nước, đặc biệt là vào những thời điểm nhạy cảm như trước các kỳ đại hội, bầu cử, hoặc khi có các sự kiện chính trị quan trọng. Các đối tượng này thường tạo lập các tài khoản mạo danh lãnh đạo, người nổi tiếng để tung tin thất thiệt, gây hoang mang dư luận, kích động và gây rối loạn thông tin. Các tin giả liên quan đến các vấn đề sắc tộc, tôn giáo có thể làm gia tăng căng thẳng, thậm chí dẫn đến bạo lực và bất ổn an ninh xã hội. Lịch sử đã ghi nhận nhiều vụ việc gây mất ổn định chính trị bắt nguồn từ tin giả, như các vụ biểu tình ở Tây Nguyên (2001, 2004) hay Bình Thuận (2018), tất cả đều xuất phát từ những thông tin bịa đặt được lan truyền có chủ đích.   
+
+Xói mòn Niềm tin Công chúng: Một trong những hệ quả nguy hiểm và lâu dài nhất của tin giả là làm suy giảm niềm tin của công chúng vào các cơ quan báo chí chính thống và các nguồn tin đáng tin cậy. Khi người dân liên tục tiếp xúc với thông tin hỗn loạn, thật giả lẫn lộn, họ sẽ mất đi khả năng phân định đâu là nguồn tin xác thực, dẫn đến tâm lý hoài nghi và mất phương hướng.   
+
+3.3. Khoảng trống Công nghệ và Nhu cầu về một Giải pháp Chuyên biệt
+Trước những tác động nghiêm trọng và đa chiều của vấn nạn tin giả, việc phát triển một công cụ công nghệ mạnh mẽ để hỗ trợ nhận diện và kiểm chứng thông tin là một nhiệm vụ cấp thiết. Như đã phân tích, mặc dù cộng đồng nghiên cứu trong nước đã có những bước tiến nhất định, hiện vẫn còn một khoảng trống lớn về một giải pháp công nghệ toàn diện, end-to-end, và có khả năng diễn giải cho tiếng Việt. Các công cụ quốc tế thường không hiệu quả do rào cản về ngôn ngữ và sự khác biệt về bối cảnh văn hóa - xã hội. Do đó, việc nghiên cứu và phát triển hệ thống ViFact, một hệ thống được thiết kế chuyên biệt cho ngôn ngữ và bối cảnh thông tin Việt Nam, không chỉ có ý nghĩa khoa học mà còn mang tính cấp thiết về mặt xã hội, góp phần xây dựng một không gian mạng lành mạnh và an toàn hơn.
+
+Phần II: Mục tiêu và Nội dung Nghiên cứu
+4. Mục tiêu của đề tài
+4.1. Mục tiêu Tổng quát
+Mục tiêu tổng quát của đề tài là nghiên cứu, thiết kế, phát triển và đánh giá toàn diện ViFact, một hệ thống kiểm chứng thông tin tự động tiên tiến, hoạt động theo quy trình end-to-end cho tiếng Việt. Hệ thống sẽ được xây dựng với các đặc tính nổi bật bao gồm độ chính xác cao, khả năng suy luận đa bước mạnh mẽ, và đặc biệt là khả năng tạo ra các giải thích trung thực, có thể kiểm soát và truy xuất được nguồn gốc, nhằm xây dựng lòng tin nơi người dùng.
+
+4.2. Mục tiêu Cụ thể
+Để đạt được mục tiêu tổng quát, đề tài sẽ tập trung vào việc thực hiện các mục tiêu cụ thể sau:
+
+Mục tiêu 1: Xây dựng và triển khai một khung Truy hồi Lai (Hybrid Retrieval) tiên tiến, kết hợp các phương pháp truy hồi thưa và dày, nhằm cải thiện đáng kể độ phủ (recall) và độ chính xác (precision) của việc truy hồi bằng chứng cho các mệnh đề tiếng Việt so với các phương pháp đơn lẻ.
+
+Mục tiêu 2: Phát triển một module Suy luận Đa bước Tường minh (ViFact-Reasoner), có khả năng tổng hợp thông tin từ nhiều nguồn bằng chứng khác nhau để xác minh các mệnh đề phức tạp, vốn không thể kiểm chứng được nếu chỉ dựa vào một bằng chứng duy nhất.
+
+Mục tiêu 3: Xây dựng một Lớp Diễn giải (ViFact-Explainer) có khả năng tạo ra các giải thích ngắn gọn, mạch lạc và trung thực. Lớp này sẽ tích hợp các kỹ thuật Điều chuẩn Luận cứ (Rationale Regularization) để trích xuất bằng chứng cốt lõi và Sinh văn bản Có kiểm soát (Controllable Text Generation) để định dạng đầu ra.
+
+Mục tiêu 4: Tích hợp một khung làm việc xây dựng lòng tin, bao gồm cơ chế Ngưỡng Tin cậy Thích nghi (Adaptive Confidence Threshold) để hiệu chỉnh sự chắc chắn của mô hình và tính năng Gán nhãn Nguồn (Source Attribution) tường minh, đặc biệt là khả năng nhận diện và hiển thị "bằng chứng phản bác" (counter-evidence).
+
+Mục tiêu 5: Đánh giá hiệu năng của hệ thống ViFact hoàn chỉnh, bao gồm cả phiên bản xử lý thông lượng cao (ViFact-Fast), trên bộ dữ liệu chuẩn ViFactCheck, nhằm thiết lập một trạng thái nghệ thuật (state-of-the-art) mới cho lĩnh vực AFC tiếng Việt.
+
+5. Nội dung đề tài
+Để thực hiện các mục tiêu đã đề ra, đề tài sẽ tập trung vào việc nghiên cứu và phát triển các module kỹ thuật cốt lõi cấu thành nên kiến trúc của hệ thống ViFact. Kiến trúc này không chỉ là một tập hợp các thành phần kỹ thuật, mà là một thiết kế có chủ đích, hướng tới việc mô phỏng và hỗ trợ quy trình nhận thức của con người khi đối mặt với thông tin, từ đó xây dựng một hệ thống không chỉ chính xác mà còn đáng tin cậy.
+
+Thành phần	Chức năng Cốt lõi	Công nghệ/Phương pháp chính	Cơ sở Nghiên cứu (Tham khảo)	Đầu ra
+Module 1: Truy hồi Lai	Tìm kiếm và xếp hạng bằng chứng liên quan nhất từ một kho văn bản lớn.	BM25 (truy hồi thưa) + Bi-Encoder (truy hồi dày) + Cross-Encoder (tái xếp hạng).		Danh sách các đoạn bằng chứng được xếp hạng theo độ liên quan.
+Module 2: Ngưỡng Tin cậy Thích nghi	Tự động điều chỉnh ngưỡng tin cậy để đưa ra phán quyết, dựa trên đặc điểm của mệnh đề.	Học máy để xác định ngưỡng dựa trên miền chủ đề và độ khó của mệnh đề.		Phán quyết (ĐÚNG/SAI) hoặc trạng thái "KHÔNG CHẮC CHẮN".
+Module 3: QATC & Điều chuẩn Luận cứ	Trích xuất một đoạn bằng chứng ngắn gọn, mạch lạc và đủ để chứng minh phán quyết.	Huấn luyện với hàm mất mát được điều chuẩn (sparsity, coherence) theo Lei et al. (2016).		Một "luận cứ" (rationale) được trích xuất.
+Module 4: ViFact-Reasoner	Tổng hợp thông tin từ nhiều bằng chứng để xác minh các mệnh đề phức tạp.	Mạng Tích chập Đồ thị (GCN) trên đồ thị ngữ nghĩa hoặc cơ chế chú ý chéo (cross-attention).		Một biểu diễn tích hợp của tất cả các bằng chứng.
+Module 5: ViFact-Explainer	Sinh ra một lời giải thích bằng ngôn ngữ tự nhiên, mạch lạc và trung thực.	Mô hình sinh văn bản (T5/BART) với kỹ thuật sinh có kiểm soát (CTG) và ràng buộc trung thực.		Một đoạn văn bản giải thích hoàn chỉnh.
+Module 6: Gán nhãn Nguồn & Bằng chứng Phản bác	Liên kết giải thích với nguồn và hiển thị các bằng chứng mâu thuẫn.	Kỹ thuật gán nhãn câu và phát hiện mâu thuẫn (contradiction detection).		Giải thích có trích dẫn nguồn và danh sách bằng chứng phản bác.
+Module 7: ViFact-Fast	Tối ưu hóa hệ thống cho việc xử lý hàng loạt với thông lượng cao.	Lượng tử hóa mô hình (quantization), chưng cất tri thức (knowledge distillation).		Hệ thống được tối ưu về tốc độ và hiệu suất.
+  
+Bảng 2: Sơ đồ Kiến trúc Hệ thống ViFact.
+
+5.1. Module 1: Khung Truy hồi Lai (Hybrid Retrieval Framework)
+Đây là module đầu tiên và có vai trò nền tảng, chịu trách nhiệm cung cấp "nguyên liệu" bằng chứng cho toàn bộ hệ thống. Một quy trình truy hồi hiệu quả là yếu tố quyết định đến chất lượng của các giai đoạn sau. Module này được thiết kế theo kiến trúc hai giai đoạn:
+
+Giai đoạn 1: Tạo Ứng viên (Candidate Generation): Hệ thống sẽ thực hiện truy vấn song song bằng hai phương pháp bổ trợ cho nhau. Bộ truy hồi thưa (BM25) sẽ nhanh chóng tìm ra các tài liệu chứa chính xác các từ khóa, thực thể quan trọng trong mệnh đề. Đồng thời, bộ truy hồi dày (sử dụng một bi-encoder dựa trên transformer như XLM-R) sẽ tìm kiếm các tài liệu có ngữ nghĩa tương đồng, khắc phục điểm yếu của BM25 khi mệnh đề và bằng chứng sử dụng các từ ngữ khác nhau để diễn đạt cùng một ý.   
+
+Giai đoạn 2: Tái xếp hạng (Re-ranking): Tập hợp các ứng viên hàng đầu từ cả hai phương pháp trên sẽ được hợp nhất và đưa vào một mô hình cross-encoder. Mô hình này sẽ thực hiện một phân tích sâu hơn bằng cách xử lý đồng thời mệnh đề và từng bằng chứng, cho phép cơ chế chú ý (attention) nắm bắt các mối quan hệ ngữ nghĩa tinh vi. Kết quả là một danh sách bằng chứng được xếp hạng lại với độ chính xác cao hơn nhiều, sẵn sàng cho các bước suy luận tiếp theo.   
+
+5.2. Module 2: Ngưỡng Tin cậy Thích nghi (Adaptive Confidence Threshold)
+Để tăng cường độ tin cậy và tránh việc đưa ra các kết luận sai lầm một cách tự tin, ViFact sẽ tích hợp một cơ chế ra quyết định linh hoạt. Thay vì sử dụng một ngưỡng tin cậy cố định (ví dụ, chỉ đưa ra phán quyết "ĐÚNG" hoặc "SAI" khi độ chắc chắn của mô hình > 90%), ngưỡng này sẽ được tự động điều chỉnh. Việc điều chỉnh này dựa trên việc phân tích các đặc tính của mệnh đề đầu vào. Các yếu tố có thể được xem xét bao gồm:
+
+Miền/Chủ đề của Mệnh đề: Các mệnh đề thuộc các lĩnh vực có mức độ rủi ro cao như y tế, pháp luật, chính trị sẽ đòi hỏi một ngưỡng tin cậy cao hơn so với các lĩnh vực giải trí hay thể thao.   
+
+Độ khó/Mơ hồ của Mệnh đề: Độ khó có thể được ước tính thông qua các đặc trưng ngôn ngữ (ví dụ: độ dài, cấu trúc cú pháp phức tạp) hoặc dựa trên kết quả từ module truy hồi (ví dụ: sự mâu thuẫn hoặc độ tương đồng thấp giữa các bằng chứng hàng đầu). Các mệnh đề khó hơn sẽ yêu cầu một ngưỡng tin cậy cao hơn.   
+
+Cách tiếp cận này phản ánh sự khiêm tốn trí tuệ của con người: chúng ta thường thận trọng hơn khi đưa ra kết luận về các vấn đề phức tạp hoặc quan trọng. Bằng cách mô phỏng hành vi này, hệ thống sẽ trở nên đáng tin cậy hơn, biết khi nào nên đưa ra phán quyết và khi nào nên báo cáo "KHÔNG ĐỦ THÔNG TIN" hoặc "KHÔNG CHẮC CHẮN".   
+
+5.3. Module 3: QATC với Điều chuẩn Luận cứ (Rationale Regularization for Evidence Generation)
+Con người thường không đọc toàn bộ một tài liệu dài để kiểm chứng thông tin; thay vào đó, họ tìm kiếm một câu hoặc một đoạn văn cụ thể chứa thông tin cốt lõi. Module này mô phỏng quá trình đó bằng cách trích xuất một "luận cứ" (rationale) từ các bằng chứng đã được truy hồi. Luận cứ này phải thỏa mãn ba tiêu chí: ngắn gọn, mạch lạc, và đầy đủ để đưa ra kết luận. Để đạt được điều này, mô hình sẽ được huấn luyện với một hàm mất mát tùy chỉnh, lấy cảm hứng từ công trình tiên phong của Lei et al. (2016). Hàm mất mát tổng thể sẽ có dạng:   
+
+L 
+total
+​
+ =L 
+classification
+​
+ +λ 
+1
+​
+ ⋅L 
+sparsity
+​
+ +λ 
+2
+​
+ ⋅L 
+coherence
+​
+ 
+
+Trong đó:
+
+L 
+classification
+​
+  là hàm mất mát phân loại tiêu chuẩn (ví dụ: cross-entropy), nhưng được tính toán chỉ dựa trên luận cứ được trích xuất. Điều này buộc luận cứ phải đầy đủ thông tin.   
+
+L 
+sparsity
+​
+  là một thành phần phạt (ví dụ: chuẩn L 
+1
+​
+  trên vector lựa chọn từ) nhằm khuyến khích mô hình chọn ít từ/câu nhất có thể, đảm bảo luận cứ ngắn gọn.   
+
+L 
+coherence
+​
+  là một thành phần phạt việc lựa chọn các từ/câu không liền kề nhau, đảm bảo luận cứ mạch lạc và dễ đọc.   
+
+Bằng cách này, hệ thống không chỉ đưa ra phán quyết mà còn chỉ ra chính xác đoạn bằng chứng nào đã được sử dụng, giúp quá trình ra quyết định trở nên minh bạch và dễ kiểm tra hơn.
+
+5.4. Module 4: Suy luận Đa bước Tường minh (ViFact-Reasoner)
+Đây là module xử lý các mệnh đề phức tạp nhất, đòi hỏi phải kết nối các "dấu chân" thông tin rải rác trên nhiều tài liệu. Ví dụ, để kiểm chứng mệnh đề "Diễn viên A, người đóng vai chính trong phim B, đã giành giải thưởng tại liên hoan phim C", hệ thống có thể cần một bằng chứng nói rằng "Diễn viên A đóng vai chính trong phim B" và một bằng chứng khác nói rằng "Phim B đã giành giải thưởng tại liên hoan phim C". Module ViFact-Reasoner được thiết kế để thực hiện các chuỗi suy luận như vậy một cách tường minh. Hai hướng tiếp cận chính sẽ được khám phá:
+
+Dựa trên Đồ thị: Xây dựng một đồ thị ngữ nghĩa từ các bằng chứng, trong đó các nút là các thực thể (Diễn viên A, Phim B, LHP C) và các cạnh biểu diễn mối quan hệ giữa chúng. Sau đó, một mô hình mạng nơ-ron trên đồ thị (GNN) sẽ được sử dụng để học các đường đi suy luận trên đồ thị này.   
+
+Dựa trên Cơ chế Chú ý: Sử dụng một kiến trúc transformer sâu, nơi các biểu diễn của mệnh đề và tất cả các bằng chứng có thể "chú ý" lẫn nhau. Điều này cho phép mô hình tự động học cách tổng hợp các thông tin liên quan từ nhiều nguồn để tạo ra một biểu diễn toàn diện cho việc ra phán quyết cuối cùng.   
+
+5.5. Module 5: Lớp Giải thích Có kiểm soát (ViFact-Explainer)
+Sau khi có được phán quyết và luận cứ, module này sẽ đảm nhận việc tạo ra một lời giải thích cuối cùng, hoàn chỉnh và dễ hiểu cho người dùng. Đây là một module sinh văn bản, sử dụng một mô hình ngôn ngữ lớn được tinh chỉnh. Quá trình sinh này sẽ được kiểm soát chặt chẽ để đảm bảo hai thuộc tính quan trọng:
+
+Tính trung thực (Faithfulness): Lời giải thích được sinh ra phải hoàn toàn nhất quán về mặt thông tin với luận cứ đã được trích xuất ở Module 3. Điều này nhằm ngăn chặn mô hình bịa đặt hoặc suy diễn thêm thông tin không có trong bằng chứng, một vấn đề nghiêm trọng của các mô hình sinh hiện nay. Điều này có thể được thực hiện bằng cách sử dụng các kỹ thuật giải mã có ràng buộc hoặc thêm một hàm mất mát phụ để kiểm tra sự suy luận logic giữa lời giải thích và luận cứ.   
+
+Tính kiểm soát được (Controllability): Áp dụng các kỹ thuật Sinh văn bản Có kiểm soát (CTG) để điều khiển các thuộc tính của lời giải thích như độ dài, văn phong (trung lập, khách quan), hoặc mức độ chi tiết, tùy theo nhu cầu của ứng dụng.   
+
+5.6. Module 6: Gán nhãn Nguồn và Bằng chứng Phản bác (Source Attribution and Counter-Evidence)
+Đây là module cuối cùng trong quy trình, tập trung vào việc củng cố lòng tin của người dùng.
+
+Gán nhãn Nguồn: Mỗi thông tin trong lời giải thích do ViFact-Explainer tạo ra sẽ được đính kèm một trích dẫn rõ ràng, chỉ đến tài liệu nguồn (URL, tên bài báo) mà từ đó thông tin được lấy. Kỹ thuật này, được gọi là "answer attribution", cho phép người dùng dễ dàng xác minh lại thông tin và tăng cường tính minh bạch của hệ thống.   
+
+Hiển thị Bằng chứng Phản bác: Trong quá trình truy hồi và suy luận, hệ thống không chỉ tìm kiếm các bằng chứng ủng hộ cho kết luận cuối cùng mà còn chủ động tìm kiếm và ghi nhận các bằng chứng đi ngược lại kết luận đó. Thay vì loại bỏ chúng, hệ thống sẽ trình bày một cách minh bạch cho người dùng, ví dụ: "Phán quyết: SAI. Mặc dù có một số nguồn tin ủng hộ mệnh đề này, nhưng các bằng chứng mạnh hơn từ các nguồn uy tín lại cho thấy điều ngược lại." Việc thừa nhận sự tồn tại của thông tin trái chiều không làm hệ thống yếu đi, mà ngược lại, cho thấy sự khách quan và toàn diện của nó, khuyến khích tư duy phản biện ở người dùng và đối phó trực tiếp với hiện tượng thiên kiến xác nhận (confirmation bias).   
+
+5.7. Module 7: ViFact-Fast (Xử lý theo lô và Tối ưu hóa Hiệu suất)
+Để đáp ứng nhu cầu xử lý một lượng lớn thông tin trong thực tế (ví dụ, quét hàng ngàn bài đăng trên mạng xã hội mỗi giờ), một phiên bản tối ưu hóa của ViFact, gọi là ViFact-Fast, sẽ được phát triển. Phiên bản này sẽ tập trung vào thông lượng (throughput) và độ trễ (latency). Các kỹ thuật tối ưu hóa có thể bao gồm lượng tử hóa mô hình (model quantization) để giảm kích thước và tăng tốc độ suy luận, chưng cất tri thức (knowledge distillation) để huấn luyện một mô hình nhỏ hơn bắt chước hành vi của mô hình lớn, và các chiến lược xử lý theo lô (batch processing) hiệu quả. Hiệu năng của ViFact-Fast sẽ được đo lường bằng các chỉ số chuẩn hóa như số mệnh đề xử lý mỗi giây và thời gian phản hồi trung bình cho mỗi mệnh đề.   
+
+Phần III: Phương pháp và Kế hoạch Thực hiện
+6. Cách tiếp cận, phương pháp nghiên cứu
+6.1. Thu thập và Tiền xử lý Dữ liệu
+Bộ dữ liệu chính: Bộ dữ liệu ViFactCheck  sẽ là tài nguyên trung tâm cho dự án, được sử dụng để huấn luyện, kiểm định và kiểm thử các module xác minh mệnh đề, trích xuất luận cứ và tạo giải thích. Cấu trúc của ViFactCheck, với các cặp mệnh đề-bằng chứng được gán nhãn cẩn thận, là nền tảng lý tưởng cho việc phát triển các thành phần cốt lõi của ViFact.   
+
+Các bộ dữ liệu phụ trợ: Để tăng cường hiệu năng của các thành phần ngôn ngữ, đề tài sẽ tận dụng các bộ dữ liệu tiếng Việt khác đã được công bố, chẳng hạn như các bộ dữ liệu từ các tác vụ NLI và MRC tại các kỳ hội thảo VLSP. Dữ liệu này có thể được sử dụng cho giai đoạn tiền huấn luyện hoặc tinh chỉnh bổ sung cho các module như bộ truy hồi dày.   
+
+Kho văn bản truy hồi (Retrieval Corpus): Một kho văn bản lớn bao gồm các bài báo từ các trang tin tức uy tín của Việt Nam và toàn bộ Wikipedia tiếng Việt sẽ được thu thập, làm sạch và lập chỉ mục (index). Kho văn bản này sẽ đóng vai trò là "cơ sở tri thức" mà từ đó module Truy hồi Lai sẽ tìm kiếm bằng chứng.
+
+6.2. Triển khai và Huấn luyện Mô hình
+Nền tảng Công nghệ: Dự án sẽ được triển khai bằng các framework học sâu tiêu chuẩn công nghiệp như PyTorch, kết hợp với hệ sinh thái thư viện phong phú từ Hugging Face Transformers để tận dụng các mô hình ngôn ngữ được huấn luyện trước.
+
+Chiến lược Huấn luyện theo Giai đoạn: Để quản lý sự phức tạp của kiến trúc, một chiến lược huấn luyện theo từng module và sau đó tích hợp sẽ được áp dụng:
+
+Huấn luyện Module Truy hồi: Các bộ truy hồi (bi-encoder và cross-encoder) sẽ được tinh chỉnh riêng biệt trên một tác vụ dự đoán độ liên quan. Dữ liệu cho tác vụ này có thể được tạo ra từ ViFactCheck (các cặp mệnh đề-bằng chứng đúng là dương tính, các cặp ngẫu nhiên là âm tính).
+
+Huấn luyện Module Suy luận và Diễn giải: Các module ViFact-Reasoner và QATC sẽ được huấn luyện end-to-end trên tác vụ xác minh mệnh đề của ViFactCheck. Hàm mất mát tùy chỉnh cho việc điều chuẩn luận cứ sẽ được tích hợp trong giai đoạn này.
+
+Huấn luyện Module Sinh Giải thích: Module ViFact-Explainer sẽ được tinh chỉnh trên một bộ dữ liệu được tạo ra từ ViFactCheck, trong đó đầu vào là (mệnh đề, luận cứ, phán quyết) và đầu ra là lời giải thích tương ứng do con người viết (nếu có) hoặc được tạo ra bán tự động.
+
+6.3. Giao thức và Thước đo Đánh giá
+Hiệu năng của hệ thống ViFact sẽ được đánh giá một cách toàn diện và đa diện, phản ánh đầy đủ các năng lực của nó.
+
+Khía cạnh Đánh giá	Các Thước đo	Bộ dữ liệu Sử dụng	Lý do Lựa chọn Thước đo
+Hiệu năng Truy hồi Bằng chứng	Recall@k, Mean Average Precision (MAP), Normalized Discounted Cumulative Gain (nDCG)	ViFactCheck	
+Các thước đo tiêu chuẩn trong lĩnh vực Truy hồi Thông tin (IR) để đánh giá khả năng tìm kiếm và xếp hạng bằng chứng.   
+
+Độ chính xác Xác minh	Accuracy, Precision, Recall, Macro F1-score	ViFactCheck	
+Các thước đo phân loại tiêu chuẩn để đánh giá khả năng đưa ra phán quyết đúng. Sẽ được đánh giá trên nhiều lược đồ nhãn (2, 3, 5 lớp) để kiểm tra sự mạnh mẽ.   
+
+Chất lượng Giải thích	Tự động: ROUGE, BLEU, TIGERScore, NLI Score (đo tính trung thực). Thủ công: Đánh giá của con người về các tiêu chí: Hợp lý (Plausibility), Trung thực (Faithfulness), Hữu ích (Helpfulness).	ViFactCheck	
+Kết hợp các thước đo tự động để đánh giá sự trôi chảy, mạch lạc, và tính nhất quán với bằng chứng, cùng với đánh giá của con người để nắm bắt các khía cạnh chất lượng mà máy không đo được.   
+
+Bảng 3: Khung Đánh giá Đa diện cho Hệ thống ViFact.
+
+Hệ thống ViFact sẽ được so sánh một cách công bằng với các mô hình nền tảng đã được báo cáo trên ViFactCheck (như XLM-R, Gemma)  cũng như các kiến trúc AFC tiên tiến khác trên thế giới được điều chỉnh để hoạt động với tiếng Việt.   
+
+7. Thời gian, tiến độ thực hiện công việc
+Dự án được đề xuất thực hiện trong vòng 24 tháng, chia thành 4 giai đoạn chính với các cột mốc rõ ràng.
+
+Giai đoạn 1 (Tháng 1-6): Xây dựng Nền tảng Dữ liệu và Huấn luyện Mô hình Cơ sở.
+
+Công việc 1.1: Thu thập, tiền xử lý và lập chỉ mục kho văn bản truy hồi. Chuẩn bị các bộ dữ liệu huấn luyện.
+
+Công việc 1.2: Triển khai, tinh chỉnh và đánh giá độc lập các thành phần của module Truy hồi Lai (BM25, bi-encoder, cross-encoder).
+
+Cột mốc 1: Hoàn thành module truy hồi bằng chứng tiên tiến cho tiếng Việt.
+
+Giai đoạn 2 (Tháng 7-15): Phát triển Module Suy luận và Giải thích Cốt lõi.
+
+Công việc 2.1: Triển khai và huấn luyện các module ViFact-Reasoner (suy luận đa bước) và QATC (điều chuẩn luận cứ).
+
+Công việc 2.2: Phát triển và huấn luyện module ViFact-Explainer với các ràng buộc về tính trung thực và khả năng kiểm soát.
+
+Công việc 2.3: Tích hợp logic Ngưỡng Tin cậy Thích nghi và cơ chế Gán nhãn Nguồn/Bằng chứng Phản bác.
+
+Cột mốc 2: Có được phiên bản nguyên mẫu (prototype) của hệ thống ViFact tích hợp, có khả năng xác minh và giải thích.
+
+Giai đoạn 3 (Tháng 16-21): Đánh giá, Tinh chỉnh Hệ thống và Phát triển ViFact-Fast.
+
+Công việc 3.1: Thực hiện đánh giá toàn diện (cả tự động và thủ công) quy trình ViFact hoàn chỉnh theo khung đánh giá đã đề ra.
+
+Công việc 3.2: Phân tích lỗi và tinh chỉnh các module dựa trên kết quả đánh giá để cải thiện hiệu năng.
+
+Công việc 3.3: Phát triển và đánh giá hiệu năng (tốc độ, thông lượng) của phiên bản xử lý theo lô ViFact-Fast.
+
+Cột mốc 3: Hoàn thiện hệ thống ViFact đã được đánh giá và tối ưu hóa, với các kết quả hiệu năng được ghi nhận.
+
+Giai đoạn 4 (Tháng 22-24): Tổng kết và Phổ biến Kết quả.
+
+Công việc 4.1: Viết các bài báo khoa học để gửi đến các hội thảo/tạp chí NLP hàng đầu (ví dụ: ACL, EMNLP, COLING).
+
+Công việc 4.2: Chuẩn bị mã nguồn mở, các mô hình đã huấn luyện và tài liệu kỹ thuật để công bố cho cộng đồng.
+
+Cột mốc 4: Hoàn thành dự án, với các công bố khoa học và sản phẩm mã nguồn mở được phát hành.
+
+8. Dự kiến kết quả đạt được
+8.1. Các Đóng góp Khoa học
+Một Kiến trúc Mới: Đề xuất và hiện thực hóa một kiến trúc mới, tích hợp và có khả năng diễn giải cho bài toán AFC, kết hợp một cách hiệp đồng các kỹ thuật tiên tiến: truy hồi lai, suy luận đa bước, điều chuẩn luận cứ và sinh giải thích có kiểm soát.
+
+Các Cải tiến Phương pháp luận: Đóng góp các phương pháp mới cho việc tính toán ngưỡng tin cậy thích nghi và việc sử dụng tường minh bằng chứng phản bác trong bối cảnh kiểm chứng thông tin, hai yếu tố quan trọng để xây dựng lòng tin.
+
+Thiết lập Chuẩn Mới cho NLP Tiếng Việt: Tạo ra một bộ kết quả hiệu năng chuẩn (benchmark) mới trên bộ dữ liệu ViFactCheck, đẩy lùi các giới hạn hiện tại về khả năng hiểu ngôn ngữ tiếng Việt trong các tác vụ phức tạp.
+
+8.2. Các Sản phẩm Cụ thể
+Hệ thống ViFact: Một hệ thống phần mềm mã nguồn mở, đầy đủ chức năng cho việc kiểm chứng thông tin tiếng Việt, có thể được triển khai và sử dụng bởi cộng đồng.
+
+Các Mô hình được Huấn luyện trước: Một bộ các mô hình đã được tối ưu hóa cho từng thành phần (truy hồi, suy luận, giải thích), có thể được tái sử dụng cho các bài toán NLP tiếng Việt khác.
+
+Các Công bố Khoa học: Ít nhất hai bài báo khoa học được bình duyệt và chấp nhận tại các hội thảo hoặc tạp chí quốc tế uy tín trong lĩnh vực NLP.
+
+8.3. Tác động Xã hội và Tiềm năng Ứng dụng
+Góp phần Chống Tin giả: Cung cấp một công cụ mạnh mẽ để hỗ trợ các nhà báo, nhà nghiên cứu, các cơ quan chức năng và công chúng trong việc xác minh thông tin, qua đó góp phần giảm thiểu các tác động tiêu cực về kinh tế, xã hội và chính trị của tin giả tại Việt Nam.   
+
+Nâng cao Năng lực Thông tin (Information Literacy): Bằng cách cung cấp các giải thích minh bạch, dựa trên bằng chứng và có sắc thái (bao gồm cả bằng chứng phản bác), ViFact có thể hoạt động như một công cụ giáo dục, thúc đẩy tư duy phản biện và năng lực thẩm định thông tin cho người dùng.
+
+Thúc đẩy Nghiên cứu NLP Tiếng Việt: Các sản phẩm mã nguồn mở của dự án sẽ trở thành một tài nguyên quý giá và một nền tảng vững chắc cho các nghiên cứu và phát triển trong tương lai của cộng đồng NLP Việt Nam.
