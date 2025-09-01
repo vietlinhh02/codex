@@ -68,6 +68,8 @@ def prepare_from_kvjson(
 
     with open(in_path, "r", encoding="utf-8") as f:
         data: Dict[str, Dict] = json.load(f)
+    total_items = len(data)
+    print(f"[prepare_kvjson] Loaded {total_items} items from {in_path}")
 
     # 1) Build corpus by chunking context into paragraphs/chunks
     corpus_rows: List[Tuple[str, str]] = []  # (doc_id, text)
@@ -93,15 +95,19 @@ def prepare_from_kvjson(
     # Save corpus
     corpus_df = pd.DataFrame(corpus_rows, columns=["doc_id", "text"])
     corpus_csv = out / "corpus.csv"
+    print(f"[prepare_kvjson] Built corpus with {len(corpus_rows)} chunks; writing {corpus_csv}")
     corpus_df.to_csv(corpus_csv, index=False)
+    # Fast lookup map to avoid per-row DataFrame filtering in the main loop
+    doc_text_map: Dict[str, str] = {did: txt for did, txt in corpus_rows}
 
     # 2) Build BM25 over all chunks
     bm25_corpus_tokens = [tokenize_bm25(t) for _, t in corpus_rows]
     bm25 = BM25Okapi(bm25_corpus_tokens)
+    print(f"[prepare_kvjson] Built BM25 over {len(corpus_rows)} chunks")
 
     # 3) Build train/valid JSONL with mapped gold evidence when possible
     records: List[Dict] = []
-    for key, obj in data.items():
+    for idx, (key, obj) in enumerate(data.items(), start=1):
         claim = str(obj.get("claim", "")).strip()
         verdict = str(obj.get("verdict", "INSUFFICIENT")).strip().upper()
         label = LABEL_MAP_IN.get(verdict, "INSUFFICIENT")
@@ -129,7 +135,7 @@ def prepare_from_kvjson(
                 gold_ids = [best_doc]
 
         # Build evidences field (use text for all ranked ids)
-        evidences = [{"doc_id": did, "text": corpus_df.loc[corpus_df.doc_id == did, "text"].values[0]} for did in ranked_doc_ids]
+        evidences = [{"doc_id": did, "text": doc_text_map.get(did, "")} for did in ranked_doc_ids]
 
         rec = {
             "claim_id": key,
@@ -140,6 +146,10 @@ def prepare_from_kvjson(
         if gold_ids:
             rec["gold_evidence_ids"] = gold_ids
         records.append(rec)
+
+        # Lightweight progress logging
+        if idx % 500 == 0 or idx == total_items:
+            print(f"[prepare_kvjson] Processed {idx}/{total_items} claims")
 
     # Train/valid split
     import random
@@ -164,6 +174,7 @@ def prepare_from_kvjson(
     bm25_json = out / "bm25.json"
     with open(bm25_json, "w", encoding="utf-8") as f:
         json.dump(bm25_map, f, ensure_ascii=False)
+    print(f"[prepare_kvjson] Wrote outputs to {out}")
 
     return {
         "corpus_csv": str(corpus_csv),
@@ -171,4 +182,3 @@ def prepare_from_kvjson(
         "valid_jsonl": str(valid_jsonl),
         "bm25_json": str(bm25_json),
     }
-
