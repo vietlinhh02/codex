@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from rapidfuzz.string_metric import jaro_winkler_similarity
+from rapidfuzz.distance import JaroWinkler
 
 from ..data import split_sentences
 
@@ -14,7 +14,7 @@ def extractive_explanation(claim: str, evidence_texts: List[str], max_sentences:
         for s in split_sentences(ev):
             if len(s) < 5:
                 continue
-            score = jaro_winkler_similarity(claim, s)
+            score = JaroWinkler.similarity(claim, s)
             scored.append((s, score))
     scored.sort(key=lambda x: x[1], reverse=True)
     picked: List[str] = []
