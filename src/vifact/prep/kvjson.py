@@ -5,10 +5,20 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import random
 
 import pandas as pd
+import numpy as np
 from rapidfuzz.fuzz import partial_ratio
 from rank_bm25 import BM25Okapi
+
+# Pre-compile regex patterns for better performance
+PARAGRAPH_SPLIT_PATTERN = re.compile(r"\n\s*\n+")
+WHITESPACE_PATTERN = re.compile(r"\s+")
+TOKENIZE_PATTERN = re.compile(r"[\wÀ-ỹ]+")
+
+# Cache for tokenized claims to avoid repeated tokenization
+_tokenize_cache: Dict[str, List[str]] = {}
 
 
 LABEL_MAP_IN = {
@@ -20,31 +30,38 @@ LABEL_MAP_IN = {
 
 
 def split_paragraphs(text: str) -> List[str]:
-    # Split by blank lines first
-    paras = re.split(r"\n\s*\n+", text.strip())
-    # Normalize whitespace
-    paras = [re.sub(r"\s+", " ", p).strip() for p in paras if p.strip()]
+    # Split by blank lines first using pre-compiled pattern
+    paras = PARAGRAPH_SPLIT_PATTERN.split(text.strip())
+    # Normalize whitespace using pre-compiled pattern
+    paras = [WHITESPACE_PATTERN.sub(" ", p).strip() for p in paras if p.strip()]
     return paras
 
 
 def chunk_text(text: str, max_tokens: int = 220) -> List[str]:
-    # Simple whitespace token-based chunking
+    # Simple whitespace token-based chunking - optimized
     tokens = text.split()
     if len(tokens) <= max_tokens:
         return [text]
-    chunks = []
-    for i in range(0, len(tokens), max_tokens):
-        chunk = " ".join(tokens[i : i + max_tokens])
-        if chunk:
-            chunks.append(chunk)
-    return chunks
+    
+    # Use list comprehension for better performance
+    return [" ".join(tokens[i:i + max_tokens]) 
+            for i in range(0, len(tokens), max_tokens)]
 
 
 def tokenize_bm25(text: str) -> List[str]:
+    # Use cache to avoid re-tokenizing the same text
+    if text in _tokenize_cache:
+        return _tokenize_cache[text]
+    
     # Basic tokenization suitable for Vietnamese/Unicode words
-    text = text.lower()
-    # Split on non-letter/digit characters; keep Vietnamese letters
-    words = re.findall(r"[\wÀ-ỹ]+", text)
+    text_lower = text.lower()
+    # Use pre-compiled pattern
+    words = TOKENIZE_PATTERN.findall(text_lower)
+    
+    # Cache result if text is short enough (likely to be repeated)
+    if len(text) < 1000:  # Cache only shorter texts
+        _tokenize_cache[text] = words
+    
     return words
 
 
@@ -71,71 +88,104 @@ def prepare_from_kvjson(
     total_items = len(data)
     print(f"[prepare_kvjson] Loaded {total_items} items from {in_path}")
 
-    # 1) Build corpus by chunking context into paragraphs/chunks
+    # 1) Build corpus by chunking context into paragraphs/chunks - optimized
     corpus_rows: List[Tuple[str, str]] = []  # (doc_id, text)
     id_to_chunks: Dict[str, List[Tuple[str, str]]] = {}
+    
+    # Pre-allocate lists for better memory efficiency
+    all_doc_ids = []
+    all_texts = []
+    
     for key, obj in data.items():
         ctx = obj.get("context") or ""
-        paras = split_paragraphs(ctx) if ctx else []
-        chunks: List[Tuple[str, str]] = []
-        pidx = 0
-        for p in paras:
-            for ch in chunk_text(p, max_tokens=max_tokens_per_chunk):
-                doc_id = f"{key}#p{pidx:02d}"
-                chunks.append((doc_id, ch))
-                corpus_rows.append((doc_id, ch))
-                pidx += 1
-        if not chunks:
-            # ensure at least one chunk (possibly empty)
+        if not ctx:
+            # Handle empty context efficiently
             doc_id = f"{key}#p00"
-            chunks = [(doc_id, ctx.strip())]
-            corpus_rows.append((doc_id, ctx.strip()))
+            chunks = [(doc_id, "")]
+            corpus_rows.append((doc_id, ""))
+            all_doc_ids.append(doc_id)
+            all_texts.append("")
+        else:
+            paras = split_paragraphs(ctx)
+            chunks: List[Tuple[str, str]] = []
+            pidx = 0
+            for p in paras:
+                p_chunks = chunk_text(p, max_tokens=max_tokens_per_chunk)
+                for ch in p_chunks:
+                    doc_id = f"{key}#p{pidx:02d}"
+                    chunks.append((doc_id, ch))
+                    corpus_rows.append((doc_id, ch))
+                    all_doc_ids.append(doc_id)
+                    all_texts.append(ch)
+                    pidx += 1
+            
+            if not chunks:
+                # ensure at least one chunk (possibly empty)
+                doc_id = f"{key}#p00"
+                chunks = [(doc_id, ctx.strip())]
+                corpus_rows.append((doc_id, ctx.strip()))
+                all_doc_ids.append(doc_id)
+                all_texts.append(ctx.strip())
+                
         id_to_chunks[key] = chunks
 
-    # Save corpus
-    corpus_df = pd.DataFrame(corpus_rows, columns=["doc_id", "text"])
+    # Save corpus using pre-built lists
+    corpus_df = pd.DataFrame({
+        "doc_id": all_doc_ids,
+        "text": all_texts
+    })
     corpus_csv = out / "corpus.csv"
     print(f"[prepare_kvjson] Built corpus with {len(corpus_rows)} chunks; writing {corpus_csv}")
     corpus_df.to_csv(corpus_csv, index=False)
-    # Fast lookup map to avoid per-row DataFrame filtering in the main loop
-    doc_text_map: Dict[str, str] = {did: txt for did, txt in corpus_rows}
+    # Fast lookup map - use dict comprehension for better performance
+    doc_text_map: Dict[str, str] = dict(corpus_rows)
 
-    # 2) Build BM25 over all chunks
-    bm25_corpus_tokens = [tokenize_bm25(t) for _, t in corpus_rows]
+    # 2) Build BM25 over all chunks - optimized tokenization
+    print(f"[prepare_kvjson] Tokenizing {len(all_texts)} chunks for BM25...")
+    bm25_corpus_tokens = [tokenize_bm25(text) for text in all_texts]
     bm25 = BM25Okapi(bm25_corpus_tokens)
     print(f"[prepare_kvjson] Built BM25 over {len(corpus_rows)} chunks")
 
-    # 3) Build train/valid JSONL with mapped gold evidence when possible
+    # 3) Build train/valid JSONL with mapped gold evidence when possible - optimized
     records: List[Dict] = []
+    
+    # Pre-compile claim tokens to avoid repeated tokenization
+    claim_tokens_cache: Dict[str, List[str]] = {}
+    
     for idx, (key, obj) in enumerate(data.items(), start=1):
         claim = str(obj.get("claim", "")).strip()
         verdict = str(obj.get("verdict", "INSUFFICIENT")).strip().upper()
         label = LABEL_MAP_IN.get(verdict, "INSUFFICIENT")
         evidence_text = obj.get("evidence")
 
-        # BM25 candidates for this claim
-        tokens = tokenize_bm25(claim)
+        # BM25 candidates for this claim - use cached tokenization
+        if claim not in claim_tokens_cache:
+            claim_tokens_cache[claim] = tokenize_bm25(claim)
+        tokens = claim_tokens_cache[claim]
+        
         scores = bm25.get_scores(tokens)
-        # rank doc_ids by score
-        ranked_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:topk_bm25]
-        ranked_doc_ids = [corpus_rows[i][0] for i in ranked_idx]
+        # Use numpy-style operations for faster ranking
+        ranked_idx = np.argpartition(scores, -topk_bm25)[-topk_bm25:]
+        ranked_idx = ranked_idx[np.argsort(scores[ranked_idx])[::-1]]
+        ranked_doc_ids = [all_doc_ids[i] for i in ranked_idx]
 
-        # Map gold evidence (string) to best chunk by fuzzy match
+        # Map gold evidence (string) to best chunk by fuzzy match - optimized
         gold_ids: List[str] = []
         if evidence_text:
-            best_doc = None
-            best_score = -1
-            # Restrict search to chunks belonging to this sample id (key) for higher precision
-            for did, text in id_to_chunks.get(key, []):
-                s = partial_ratio(evidence_text, text)
-                if s > best_score:
-                    best_score = s
-                    best_doc = did
-            if best_doc is not None:
-                gold_ids = [best_doc]
+            chunks_for_key = id_to_chunks.get(key, [])
+            if chunks_for_key:
+                # Use vectorized approach for fuzzy matching
+                chunk_texts = [text for _, text in chunks_for_key]
+                chunk_ids = [did for did, _ in chunks_for_key]
+                
+                # Calculate all scores at once
+                scores = [partial_ratio(evidence_text, text) for text in chunk_texts]
+                if scores:
+                    best_idx = max(range(len(scores)), key=lambda i: scores[i])
+                    gold_ids = [chunk_ids[best_idx]]
 
-        # Build evidences field (use text for all ranked ids)
-        evidences = [{"doc_id": did, "text": doc_text_map.get(did, "")} for did in ranked_doc_ids]
+        # Build evidences field (use text for all ranked ids) - optimized
+        evidences = [{"doc_id": did, "text": doc_text_map[did]} for did in ranked_doc_ids]
 
         rec = {
             "claim_id": key,
@@ -152,17 +202,16 @@ def prepare_from_kvjson(
             print(f"[prepare_kvjson] Processed {idx}/{total_items} claims")
 
     # Train/valid split
-    import random
-
     random.Random(seed).shuffle(records)
     n_valid = max(1, int(len(records) * valid_ratio))
     valid_recs = records[:n_valid]
     train_recs = records[n_valid:]
 
     def write_jsonl(path: Path, items: List[Dict]):
+        # Batch write for better I/O performance
+        lines = [json.dumps(obj, ensure_ascii=False) for obj in items]
         with open(path, "w", encoding="utf-8") as f:
-            for obj in items:
-                f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            f.write('\n'.join(lines) + '\n')
 
     train_jsonl = out / "train.jsonl"
     valid_jsonl = out / "valid.jsonl"
@@ -175,6 +224,9 @@ def prepare_from_kvjson(
     with open(bm25_json, "w", encoding="utf-8") as f:
         json.dump(bm25_map, f, ensure_ascii=False)
     print(f"[prepare_kvjson] Wrote outputs to {out}")
+
+    # Clear cache to free memory
+    _tokenize_cache.clear()
 
     return {
         "corpus_csv": str(corpus_csv),

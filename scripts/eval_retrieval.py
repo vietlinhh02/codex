@@ -30,6 +30,16 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+# Bootstrap repo-local src on sys.path for direct script runs (Windows-friendly)
+try:
+    import vifact  # type: ignore
+except Exception:
+    import os, sys
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _src = os.path.join(_root, "src")
+    if _src not in sys.path:
+        sys.path.insert(0, _src)
+
 from vifact.config import PipelineConfig
 from vifact.data import load_corpus_from_csv, load_corpus_from_jsonl
 from vifact.pipeline import ViFactPipeline
@@ -161,4 +171,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
