@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -38,8 +38,8 @@ class ExplainConfig:
 
 @dataclass
 class PipelineConfig:
-    retrieval: RetrievalConfig = RetrievalConfig()
-    rerank: RerankConfig = RerankConfig()
-    verify: VerifyConfig = VerifyConfig()
-    explain: ExplainConfig = ExplainConfig()
+    retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
+    rerank: RerankConfig = field(default_factory=RerankConfig)
+    verify: VerifyConfig = field(default_factory=VerifyConfig)
+    explain: ExplainConfig = field(default_factory=ExplainConfig)
 

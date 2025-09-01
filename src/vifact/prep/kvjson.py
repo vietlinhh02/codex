@@ -79,16 +79,23 @@ def prepare_from_kvjson(
     - train.jsonl / valid.jsonl (for Reasoner/Explainer training)
     - bm25.json (claim -> ranked list of doc_id)
     """
+    import time
+    start_time = time.time()
+    
     in_path = str(in_path)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    print(f"[prepare_kvjson] Starting processing at {time.strftime('%H:%M:%S')}")
     with open(in_path, "r", encoding="utf-8") as f:
         data: Dict[str, Dict] = json.load(f)
     total_items = len(data)
     print(f"[prepare_kvjson] Loaded {total_items} items from {in_path}")
+    print(f"[prepare_kvjson] Target: max_tokens={max_tokens_per_chunk}, topk_bm25={topk_bm25}")
 
     # 1) Build corpus by chunking context into paragraphs/chunks - optimized
+    print(f"[prepare_kvjson] Step 1/4: Building corpus from {total_items} documents...")
+    step1_start = time.time()
     corpus_rows: List[Tuple[str, str]] = []  # (doc_id, text)
     id_to_chunks: Dict[str, List[Tuple[str, str]]] = {}
     
@@ -96,7 +103,7 @@ def prepare_from_kvjson(
     all_doc_ids = []
     all_texts = []
     
-    for key, obj in data.items():
+    for idx, (key, obj) in enumerate(data.items(), 1):
         ctx = obj.get("context") or ""
         if not ctx:
             # Handle empty context efficiently
@@ -128,25 +135,48 @@ def prepare_from_kvjson(
                 all_texts.append(ctx.strip())
                 
         id_to_chunks[key] = chunks
+        
+        # More frequent progress updates
+        if idx % 100 == 0 or idx == total_items:
+            elapsed = time.time() - step1_start
+            rate = idx / elapsed if elapsed > 0 else 0
+            print(f"[prepare_kvjson] Documents: {idx}/{total_items} ({idx/total_items*100:.1f}%) - {rate:.1f} docs/sec")
 
-    # Save corpus using pre-built lists
+    step1_time = time.time() - step1_start
+    print(f"[prepare_kvjson] Step 1 completed in {step1_time:.1f}s - Created {len(corpus_rows)} chunks")
+
+    # Save corpus
+    print(f"[prepare_kvjson] Saving corpus to CSV...")
     corpus_df = pd.DataFrame({
         "doc_id": all_doc_ids,
         "text": all_texts
     })
     corpus_csv = out / "corpus.csv"
-    print(f"[prepare_kvjson] Built corpus with {len(corpus_rows)} chunks; writing {corpus_csv}")
     corpus_df.to_csv(corpus_csv, index=False)
     # Fast lookup map - use dict comprehension for better performance
     doc_text_map: Dict[str, str] = dict(corpus_rows)
+    print(f"[prepare_kvjson] Corpus saved: {len(corpus_rows)} chunks")
 
     # 2) Build BM25 over all chunks - optimized tokenization
+    print(f"[prepare_kvjson] Step 2/4: Building BM25 index from {len(all_texts)} chunks...")
+    step2_start = time.time()
+    
     print(f"[prepare_kvjson] Tokenizing {len(all_texts)} chunks for BM25...")
-    bm25_corpus_tokens = [tokenize_bm25(text) for text in all_texts]
+    bm25_corpus_tokens = []
+    for i, text in enumerate(all_texts):
+        tokens = tokenize_bm25(text)
+        bm25_corpus_tokens.append(tokens)
+        if (i + 1) % 1000 == 0 or (i + 1) == len(all_texts):
+            print(f"[prepare_kvjson] Tokenized {i+1}/{len(all_texts)} chunks ({(i+1)/len(all_texts)*100:.1f}%)")
+    
+    print(f"[prepare_kvjson] Creating BM25 index...")
     bm25 = BM25Okapi(bm25_corpus_tokens)
-    print(f"[prepare_kvjson] Built BM25 over {len(corpus_rows)} chunks")
+    step2_time = time.time() - step2_start
+    print(f"[prepare_kvjson] Step 2 completed in {step2_time:.1f}s - BM25 index ready")
 
     # 3) Build train/valid JSONL with mapped gold evidence when possible - optimized
+    print(f"[prepare_kvjson] Step 3/4: Processing {total_items} claims for evidence retrieval...")
+    step3_start = time.time()
     records: List[Dict] = []
     
     # Pre-compile claim tokens to avoid repeated tokenization
@@ -197,11 +227,19 @@ def prepare_from_kvjson(
             rec["gold_evidence_ids"] = gold_ids
         records.append(rec)
 
-        # Lightweight progress logging
-        if idx % 500 == 0 or idx == total_items:
-            print(f"[prepare_kvjson] Processed {idx}/{total_items} claims")
+        # More frequent progress logging with timing info
+        if idx % 100 == 0 or idx == total_items:
+            elapsed = time.time() - step3_start
+            rate = idx / elapsed if elapsed > 0 else 0
+            eta = (total_items - idx) / rate if rate > 0 else 0
+            print(f"[prepare_kvjson] Claims: {idx}/{total_items} ({idx/total_items*100:.1f}%) - {rate:.1f} claims/sec - ETA: {eta:.0f}s")
+
+    step3_time = time.time() - step3_start
+    print(f"[prepare_kvjson] Step 3 completed in {step3_time:.1f}s - Processed {len(records)} claims")
 
     # Train/valid split
+    print(f"[prepare_kvjson] Step 4/4: Splitting data and saving files...")
+    step4_start = time.time()
     random.Random(seed).shuffle(records)
     n_valid = max(1, int(len(records) * valid_ratio))
     valid_recs = records[:n_valid]
@@ -215,14 +253,22 @@ def prepare_from_kvjson(
 
     train_jsonl = out / "train.jsonl"
     valid_jsonl = out / "valid.jsonl"
+    print(f"[prepare_kvjson] Writing {len(train_recs)} train records...")
     write_jsonl(train_jsonl, train_recs)
+    print(f"[prepare_kvjson] Writing {len(valid_recs)} validation records...")
     write_jsonl(valid_jsonl, valid_recs)
 
     # 4) Save bm25.json mapping claim->ranked_doc_ids for quick hybrid fusion
+    print(f"[prepare_kvjson] Saving BM25 mappings...")
     bm25_map = {rec["claim"]: [ev["doc_id"] for ev in rec["evidences"]] for rec in records}
     bm25_json = out / "bm25.json"
     with open(bm25_json, "w", encoding="utf-8") as f:
         json.dump(bm25_map, f, ensure_ascii=False)
+    
+    step4_time = time.time() - step4_start
+    total_time = time.time() - start_time
+    print(f"[prepare_kvjson] Step 4 completed in {step4_time:.1f}s")
+    print(f"[prepare_kvjson] 🎉 ALL DONE! Total time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
     print(f"[prepare_kvjson] Wrote outputs to {out}")
 
     # Clear cache to free memory

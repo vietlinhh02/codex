@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+*.log
+*.sqlite3
+*.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Data & outputs
+*.csv
+*.tsv
+*.jsonl
+*.json
+*.parquet
+*.h5
+*.pkl
+*.npy
+*.npz
+outputs/
+prepared/
+Dataset/qatc_dataset.csv
+Dataset/drive-download-*/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.venv/
+venv/
+
+# Others
+*.bak
+*.tmp
+*.swp
+*.swo

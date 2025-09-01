@@ -106,20 +106,27 @@ def prepare_from_kvjson_threaded(
     """
     if n_threads is None:
         import multiprocessing as mp
-        n_threads = min(mp.cpu_count(), 8)  # Cap at 8
+        n_threads = min(mp.cpu_count() - 2, 6)  # Leave 2 cores free, max 6 threads
+    else:
+        n_threads = min(n_threads, 6)  # Force max 6 threads as requested
     
+    import time
+    start_time = time.time()
     in_path = str(in_path)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    print(f"[prepare_kvjson_threaded] Starting processing at {time.strftime('%H:%M:%S')}")
     with open(in_path, "r", encoding="utf-8") as f:
         data: Dict[str, Dict] = json.load(f)
     total_items = len(data)
     print(f"[prepare_kvjson_threaded] Loaded {total_items} items from {in_path}")
-    print(f"[prepare_kvjson_threaded] Using {n_threads} threads")
+    print(f"[prepare_kvjson_threaded] Using {n_threads} threads (CPU limit: 6)")
+    print(f"[prepare_kvjson_threaded] Config: max_tokens={max_tokens_per_chunk}, topk_bm25={topk_bm25}")
 
     # 1) Build corpus by chunking - sequential for simplicity and memory efficiency
-    print("[prepare_kvjson_threaded] Processing documents...")
+    print("[prepare_kvjson_threaded] Step 1/4: Processing documents into chunks...")
+    step1_start = time.time()
     corpus_rows = []
     id_to_chunks = {}
     all_doc_ids = []
@@ -156,23 +163,42 @@ def prepare_from_kvjson_threaded(
                 
         id_to_chunks[key] = chunks
         
-        if idx % 1000 == 0:
-            print(f"[prepare_kvjson_threaded] Processed {idx}/{total_items} documents")
+        if idx % 200 == 0 or idx == total_items:
+            elapsed = time.time() - step1_start
+            rate = idx / elapsed if elapsed > 0 else 0
+            eta = (total_items - idx) / rate if rate > 0 else 0
+            print(f"[prepare_kvjson_threaded] Documents: {idx}/{total_items} ({idx/total_items*100:.1f}%) - {rate:.1f} docs/sec - ETA: {eta:.0f}s")
+
+    step1_time = time.time() - step1_start
+    print(f"[prepare_kvjson_threaded] Step 1 completed in {step1_time:.1f}s - Created {len(corpus_rows)} chunks")
 
     # Save corpus
+    print(f"[prepare_kvjson_threaded] Saving corpus to CSV...")
     corpus_df = pd.DataFrame({
         "doc_id": all_doc_ids,
         "text": all_texts
     })
     corpus_csv = out / "corpus.csv"
-    print(f"[prepare_kvjson_threaded] Built corpus with {len(corpus_rows)} chunks; writing {corpus_csv}")
     corpus_df.to_csv(corpus_csv, index=False)
     doc_text_map = dict(corpus_rows)
+    print(f"[prepare_kvjson_threaded] Corpus saved: {len(corpus_rows)} chunks")
 
     # 2) Build BM25
-    print(f"[prepare_kvjson_threaded] Building BM25 over {len(all_texts)} chunks...")
-    bm25_corpus_tokens = [tokenize_bm25(text) for text in all_texts]
+    print(f"[prepare_kvjson_threaded] Step 2/4: Building BM25 index from {len(all_texts)} chunks...")
+    step2_start = time.time()
+    
+    print(f"[prepare_kvjson_threaded] Tokenizing chunks for BM25...")
+    bm25_corpus_tokens = []
+    for i, text in enumerate(all_texts):
+        tokens = tokenize_bm25(text)
+        bm25_corpus_tokens.append(tokens)
+        if (i + 1) % 2000 == 0 or (i + 1) == len(all_texts):
+            print(f"[prepare_kvjson_threaded] Tokenized {i+1}/{len(all_texts)} chunks ({(i+1)/len(all_texts)*100:.1f}%)")
+    
+    print(f"[prepare_kvjson_threaded] Creating BM25 index...")
     bm25 = BM25Okapi(bm25_corpus_tokens)
+    step2_time = time.time() - step2_start
+    print(f"[prepare_kvjson_threaded] Step 2 completed in {step2_time:.1f}s")
 
     # 3) Process claims with threading
     print("[prepare_kvjson_threaded] Processing claims with threading...")
